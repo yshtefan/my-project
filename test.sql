@@ -19,4 +19,4 @@ from t
 group by grouping sets(t.region,(t.region,t.sname,t.city))
 order by   case when t.region like '%Москва%' then 1 end, --сортируем
                                case   when t.region like '%Санкт-Петербург%' then 2 end,
-                                 t.region, grouping_id(t.sname, t.city, t.region) desc, t.city, t.sname, t.region;
+                                 t.region, grouping_id(t.sname, t.city, t.region) desc, t.city, t.sname;
