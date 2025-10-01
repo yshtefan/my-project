@@ -1,0 +1,38 @@
+CREATE OR REPLACE TRIGGER employees_compound_trigger
+   FOR UPDATE OF salary ON employees
+COMPOUND TRIGGER
+
+ -- Секция объявлений
+ v_old_salary employees.salary%TYPE;
+ v_row_count NUMBER := 0;
+ v_total_rows NUMBER := 0;
+
+ -- Точки синхронизации (они же "точки выполнения" или "точки триггера") 
+BEFORE STATEMENT IS 
+BEGIN
+ dbms_output.put_line('Начало операции обновления в таблице employees.');
+END BEFORE STATEMENT; 
+-- Сохранение старой зарплаты перед обновлением
+BEFORE EACH ROW IS
+ BEGIN
+ v_row_count := v_row_count + 1;
+ v_old_salary := :OLD.salary; 
+dbms_output.put_line('Обновление строки: ' || :OLD.employee_id || ', старая зарплата: ' || v_old_salary); 
+END BEFORE EACH ROW;
+ 
+AFTER EACH ROW IS
+BEGIN
+ IF :OLD.salary <> :NEW.salary THEN
+dbms_output.put_line('Изменение зарплаты для сотрудника ' || :OLD.employee_id || '. Новая зар
+плата: ' || :NEW.salary); -- Здесь можно выполнять дополнительные действия с данными до того, как они будут окончательно сохранены
+ END IF;
+ END AFTER EACH ROW;
+
+AFTER STATEMENT IS 
+BEGIN
+ v_total_rows := v_row_count;
+dbms_output.put_line('Операция обновления завершена. Обработано строк: ' || v_total_rows);
+END AFTER STATEMENT;
+
+END employees_compound_trigger;
+
