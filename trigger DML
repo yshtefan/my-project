@@ -1,0 +1,15 @@
+CREATE OR REPLACE TRIGGER trg_log_changes
+BEFORE INSERT OR UPDATE OR DELETE ON pholder
+   FOR EACH ROW
+   BEGIN
+  IF INSERTING THEN
+    INSERT INTO change_log (operation, employee_id, old_value, new_value, change_time)
+    VALUES ('INSERT', :NEW.holder_id, NULL, :NEW.birddate, SYSDATE);
+  ELSIF UPDATING THEN
+    INSERT INTO change_log (operation, employee_id, old_value, new_value, change_time)
+    VALUES ('UPDATE', :OLD.holder_id, :OLD.birddate, :NEW.birddate, SYSDATE);
+  ELSIF DELETING THEN
+    INSERT INTO change_log (operation, employee_id, old_value, new_value, change_time)
+    VALUES ('DELETE', :OLD.holder_id, :OLD.birddate, NULL, SYSDATE);
+  END IF;
+ END;
