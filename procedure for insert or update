@@ -1,0 +1,46 @@
+create or replace procedure my_proc_1 as
+vn  number:= 200000;
+cnt number;
+begin
+for a in 
+   (select p.policy_id, td.new_value, td.processed
+      from policy p
+      join tmp_table td on td.policy = p.policy_id
+   where td.processed = 'N') loop
+
+   begin
+    exit when vn = 0;
+    savepoint sp1;
+
+   select count(1)
+     into cnt
+    from covers c
+  where c.policy = a.policy_id
+    and c.code = 'MAIN_COVER';
+
+  begin
+
+   if cnt = 0 then
+      insert covers (id, policy, code, ssum)
+      values (nextval, a.policy_id, 'MAIN_COVER', a.new_value);
+   else
+      update covers
+         set ssum = a.new_value
+      where c.policy = a.policy_id
+        and c.code = 'MAIN_COVER'; 
+  end if;
+
+   update tmp_table set processed = 'Y', pdate = sysdate where policy = a.policy_id;
+exception
+when others then
+     update tmp_table set logerror = DBMS_UTILITY.FORMAT_ERROR_STACK() where policy = a.policy_id;
+end;
+
+vn := vn - 1;
+  exception
+when others then
+  rollback to sp1;
+end;
+end loop;
+commit;
+end;
