@@ -1,0 +1,13 @@
+CREATE OR REPLACE TRIGGER trg_insert_product_cover
+     INSTEAD OF INSERT ON v_product_cover
+FOR EACH ROW
+  BEGIN
+    IF NOT EXISTS (SELECT 1 FROM products WHERE prod_name = :NEW.dprod_name) THEN
+         INSERT INTO products (prod_id, prod_name) VALUES (:NEW.prod_id, :NEW.prod_name);
+    END IF; 
+    INSERT INTO covers (cov_id, cov_name, code, product_id)
+    VALUES ( :NEW.cov_id, 
+                   :NEW.cov_name, 
+                   :NEW.code,
+                  (SELECT prod_id FROM products WHERE prod_id = :NEW.prod_id));
+END;
