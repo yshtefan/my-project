@@ -1,0 +1,7 @@
+CREATE OR REPLACE TRIGGER system_log_trigger
+AFTER CREATE ON SCHEMA
+BEGIN
+  -- Логика записи в журнал
+  INSERT INTO audit_log (event_type, object_type, object_name, user_name)
+  VALUES ('CREATE_TABLE', 'TABLE', sys_context('USERENV', 'CURRENT_OBJECT_NAME'), sys_context('USERENV', 'CURRENT_USER'));
+END;
