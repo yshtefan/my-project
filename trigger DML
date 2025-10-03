@@ -1,15 +1,15 @@
-CREATE OR REPLACE TRIGGER trg_log_changes
-BEFORE INSERT OR UPDATE OR DELETE ON pholder
+CREATE OR REPLACE TRIGGER trg_log_disease_changes
+BEFORE INSERT OR UPDATE OR DELETE ON insured_diseases
    FOR EACH ROW
    BEGIN
   IF INSERTING THEN
-    INSERT INTO change_log (operation, employee_id, old_value, new_value, change_time)
-    VALUES ('INSERT', :NEW.holder_id, NULL, :NEW.birddate, SYSDATE);
+    INSERT INTO disease_log (id, insured_id, action_type, new_disease_name, new_date, new_severity, changed_by, change_date)
+    VALUES (:NEW.id, :NEW.insured_id, 'INSERT', :NEW.disease_name, :NEW.diagnosis_date, :NEW.severity_level, USER, SYSDATE);
   ELSIF UPDATING THEN
-    INSERT INTO change_log (operation, employee_id, old_value, new_value, change_time)
-    VALUES ('UPDATE', :OLD.holder_id, :OLD.birddate, :NEW.birddate, SYSDATE);
+    INSERT INTO disease_log (id, insured_id, action_type, old_disease_name, new_disease_name, old_date, new_date, old_severity, new_severity, changed_by, change_date)
+    VALUES (:OLD.id, :OLD.insured_id, 'UPDATE', :OLD.disease_name, :NEW.disease_name, :OLD.diagnosis_date, :NEW.diagnosis_date, :OLD.severity_level, :NEW.severity_level, USER, SYSDATE);
   ELSIF DELETING THEN
-    INSERT INTO change_log (operation, employee_id, old_value, new_value, change_time)
-    VALUES ('DELETE', :OLD.holder_id, :OLD.birddate, NULL, SYSDATE);
+    INSERT INTO disease_log (id, insured_id, action_type, old_disease_name, old_date, old_severity, changed_by, change_date)
+    VALUES (:OLD.id, :OLD.insured_id, 'DELETE', :OLD.disease_name, :OLD.diagnosis_date, :OLD.severity_level, USER, SYSDATE);
   END IF;
  END;
