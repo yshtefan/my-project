@@ -1,40 +1,67 @@
-CREATE OR REPLACE TRIGGER trg_insert_insured_with_disease
-     INSTEAD OF INSERT OR UPDATE OR DELETE ON v_insured_with_disease
+CREATE OR REPLACE TRIGGER trg_insured_diseases_full_logic
+INSTEAD OF INSERT OR UPDATE OR DELETE ON insured_with_diseases_view
 FOR EACH ROW
 DECLARE
-V_INSURED_ID NUMBER;
-  BEGIN
-   IF INSERTING THEN
-      --Проверим есть ли застрахованный
-      SELECT COUNT(*)
-       INTO V_INSURED_ID
-       FROM POLICY_INSURED
-      WHERE INSURED_ID = :NEW.INSURED_ID;
+    v_count           NUMBER;
+    v_disease_count   NUMBER;
+BEGIN
+    ----------------------------------------------------
+    -- INSERT: Добавить страхователя и диагноз
+    ----------------------------------------------------
+    IF INSERTING THEN
+        -- Проверяем наличие страхователя
+        SELECT COUNT(*) INTO v_count
+        FROM policy_holders
+        WHERE holder_id = :NEW.holder_id;
 
-      IF V_insured_ID = 0 THEN
-        --Вставляем нового застрахованного
-         INSERT INTO POLICY_INSURED (INSURED_ID, FULL_NAME, BIRTH_DATE) 
-         VALUES (:NEW.INSURED_ID, :NEW.FULL_NAME, :NEW.BIRTH_DATE);
-      END IF; 
+        -- Если страхователя нет — добавляем
+        IF v_count = 0 THEN
+            INSERT INTO policy_holders (holder_id, full_name, birth_date)
+            VALUES (:NEW.holder_id, :NEW.full_name, :NEW.birth_date);
+        END IF;
 
-      --Вставляем новое заболевание
-      INSERT INTO INSURED_DISEASES (id, INSURED_ID, DISEASES_NAME, DIAGNOSIS_DATE, SEVERITY_LEVEL)
-      VALUES (:NEW.id, :NEW.INSURED_ID, :NEW.DISEASES_NAME, :NEW:DIAGNOSIS_DATE, :NEW.SEVERITY_LEVEL);
+        -- Если record_id не указан — генерируем новый
+        INSERT INTO insured_diseases (
+            record_id,
+            holder_id,
+            disease_name,
+            diagnosis_date,
+            severity_level
+        )
+        VALUES (
+            NVL(:NEW.record_id, seq_record_id.NEXTVAL),
+            :NEW.holder_id,
+            :NEW.disease_name,
+            :NEW.diagnosis_date,
+            :NEW.severity_level
+        );
 
-   ELSIF UPDATING THEN
-     IF NVL(:NEW.DISEASES_NAME, 'X') <> NVL(:OLD.DISEASES_NAME, 'X') 
-        OR NVL(:NEW.DIAGNOSIS_DATE, TO_DATE('01.01.1990','DD.MM.YYYY')) <> NVL(:OLD.DIAGNOSIS_DATE, TO_DATE('01.01.1990','DD.MM.YYYY'))
-        OR NVL(:NEW.SEVERITY_LEVEL, 'X') <> NVL(:OLD.SEVERITY_LEVEL, 'X') THEN
-      UPDATE INSURED_DISEASES
-         SET DISEASES_NAME = :NEW.DISEASES_NAME,
-             DIAGNOSIS_DATE = :NEW.DIAGNOSIS_DATE,
-             SEVERITY_LEVEL = :NEW.SEVERITY_LEVEL
-       WHERE ID = :OLD.ID;
+    ----------------------------------------------------
+    -- UPDATE: Используем MERGE
+    ----------------------------------------------------
+    ELSIF UPDATING THEN
+        MERGE INTO insured_diseases d
+        USING (SELECT :NEW.record_id AS record_id FROM dual) src
+        ON (d.record_id = src.record_id)
+        WHEN MATCHED THEN
+            UPDATE SET
+                d.disease_name    = :NEW.disease_name,
+                d.diagnosis_date  = :NEW.diagnosis_date,
+                d.severity_level  = :NEW.severity_level
+            WHERE
+                NVL(:NEW.disease_name, 'x')     != NVL(:OLD.disease_name, 'x') OR
+                NVL(:NEW.diagnosis_date, TO_DATE('1900-01-01','YYYY-MM-DD')) != NVL(:OLD.diagnosis_date, TO_DATE('1900-01-01','YYYY-MM-DD')) OR
+                NVL(:NEW.severity_level, 'x')   != NVL(:OLD.severity_level, 'x');
 
-   ELSIF DELITING THEN
+    ----------------------------------------------------
+    -- DELETE: Запрет удаления критических диагнозов
+    ----------------------------------------------------
+    ELSIF DELETING THEN
+        IF LOWER(:OLD.severity_level) = 'критическое' THEN
+            RAISE_APPLICATION_ERROR(-20001, 'Нельзя удалить диагноз с критической степенью тяжести.');
+        END IF;
 
-     -- удаляем заболевание
-     DELETE FROM INSURED_DISEASES WHERE ID = :OLD.ID;
-  END IF;
-
+        DELETE FROM insured_diseases
+        WHERE record_id = :OLD.record_id;
+    END IF;
 END;
