@@ -1,13 +1,40 @@
-CREATE OR REPLACE TRIGGER trg_insert_product_cover
-     INSTEAD OF INSERT ON v_product_cover
+CREATE OR REPLACE TRIGGER trg_insert_insured_with_disease
+     INSTEAD OF INSERT OR UPDATE OR DELETE ON v_insured_with_disease
 FOR EACH ROW
+DECLARE
+V_INSURED_ID NUMBER;
   BEGIN
-    IF NOT EXISTS (SELECT 1 FROM products WHERE prod_name = :NEW.dprod_name) THEN
-         INSERT INTO products (prod_id, prod_name) VALUES (:NEW.prod_id, :NEW.prod_name);
-    END IF; 
-    INSERT INTO covers (cov_id, cov_name, code, product_id)
-    VALUES ( :NEW.cov_id, 
-                   :NEW.cov_name, 
-                   :NEW.code,
-                  (SELECT prod_id FROM products WHERE prod_id = :NEW.prod_id));
+   IF INSERTING THEN
+      --Проверим есть ли застрахованный
+      SELECT COUNT(*)
+       INTO V_INSURED_ID
+       FROM POLICY_INSURED
+      WHERE INSURED_ID = :NEW.INSURED_ID;
+
+      IF V_insured_ID = 0 THEN
+        --Вставляем нового застрахованного
+         INSERT INTO POLICY_INSURED (INSURED_ID, FULL_NAME, BIRTH_DATE) 
+         VALUES (:NEW.INSURED_ID, :NEW.FULL_NAME, :NEW.BIRTH_DATE);
+      END IF; 
+
+      --Вставляем новое заболевание
+      INSERT INTO INSURED_DISEASES (id, INSURED_ID, DISEASES_NAME, DIAGNOSIS_DATE, SEVERITY_LEVEL)
+      VALUES (:NEW.id, :NEW.INSURED_ID, :NEW.DISEASES_NAME, :NEW:DIAGNOSIS_DATE, :NEW.SEVERITY_LEVEL);
+
+   ELSIF UPDATING THEN
+     IF NVL(:NEW.DISEASES_NAME, 'X') <> NVL(:OLD.DISEASES_NAME, 'X') 
+        OR NVL(:NEW.DIAGNOSIS_DATE, TO_DATE('01.01.1990','DD.MM.YYYY')) <> NVL(:OLD.DIAGNOSIS_DATE, TO_DATE('01.01.1990','DD.MM.YYYY'))
+        OR NVL(:NEW.SEVERITY_LEVEL, 'X') <> NVL(:OLD.SEVERITY_LEVEL, 'X') THEN
+      UPDATE INSURED_DISEASES
+         SET DISEASES_NAME = :NEW.DISEASES_NAME,
+             DIAGNOSIS_DATE = :NEW.DIAGNOSIS_DATE,
+             SEVERITY_LEVEL = :NEW.SEVERITY_LEVEL
+       WHERE ID = :OLD.ID;
+
+   ELSIF DELITING THEN
+
+     -- удаляем заболевание
+     DELETE FROM INSURED_DISEASES WHERE ID = :OLD.ID;
+  END IF;
+
 END;
