@@ -5,9 +5,7 @@ DECLARE
     v_count           NUMBER;
     v_disease_count   NUMBER;
 BEGIN
-    ----------------------------------------------------
-    -- INSERT: Добавить страхователя и диагноз
-    ----------------------------------------------------
+    -- Добавим страхователя и диагноз
     IF INSERTING THEN
         -- Проверяем наличие страхователя
         SELECT COUNT(*) INTO v_count
@@ -35,10 +33,6 @@ BEGIN
             :NEW.diagnosis_date,
             :NEW.severity_level
         );
-
-    ----------------------------------------------------
-    -- UPDATE: Используем MERGE
-    ----------------------------------------------------
     ELSIF UPDATING THEN
         MERGE INTO insured_diseases d
         USING (SELECT :NEW.record_id AS record_id FROM dual) src
@@ -52,10 +46,8 @@ BEGIN
                 NVL(:NEW.disease_name, 'x')     != NVL(:OLD.disease_name, 'x') OR
                 NVL(:NEW.diagnosis_date, TO_DATE('1900-01-01','YYYY-MM-DD')) != NVL(:OLD.diagnosis_date, TO_DATE('1900-01-01','YYYY-MM-DD')) OR
                 NVL(:NEW.severity_level, 'x')   != NVL(:OLD.severity_level, 'x');
-
-    ----------------------------------------------------
-    -- DELETE: Запрет удаления критических диагнозов
-    ----------------------------------------------------
+-
+    -- Добавим запрет удаления критических диагнозов
     ELSIF DELETING THEN
         IF LOWER(:OLD.severity_level) = 'критическое' THEN
             RAISE_APPLICATION_ERROR(-20001, 'Нельзя удалить диагноз с критической степенью тяжести.');
