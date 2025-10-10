@@ -1,38 +1,47 @@
-CREATE OR REPLACE TRIGGER employees_compound_trigger
-   FOR UPDATE OF salary ON employees
+CREATE OR REPLACE TRIGGER trg_insurance_status_full
+FOR INSERT OR UPDATE ON insurance_policies
 COMPOUND TRIGGER
 
- -- Секция объявлений
- v_old_salary employees.salary%TYPE;
- v_row_count NUMBER := 0;
- v_total_rows NUMBER := 0;
+  -- переменная для подсчёта обработанных строк
+  v_row_count NUMBER := 0;
 
- -- Точки синхронизации (они же "точки выполнения" или "точки триггера") 
-BEFORE STATEMENT IS 
+-- выполнение один раз перед операцией
+BEFORE STATEMENT IS
 BEGIN
- dbms_output.put_line('Начало операции обновления в таблице employees.');
-END BEFORE STATEMENT; 
--- Сохранение старой зарплаты перед обновлением
-BEFORE EACH ROW IS
- BEGIN
- v_row_count := v_row_count + 1;
- v_old_salary := :OLD.salary; 
-dbms_output.put_line('Обновление строки: ' || :OLD.employee_id || ', старая зарплата: ' || v_old_salary); 
-END BEFORE EACH ROW;
- 
-AFTER EACH ROW IS
+  v_row_count := 0; -- инициализация счетчика
+  DBMS_OUTPUT.PUT_LINE('Старт операции: обработка строк...');
+
+END BEFORE STATEMENT;
+
+-- для каждой строки перед внесением изменений
+BEFORE ROW IS
 BEGIN
- IF :OLD.salary <> :NEW.salary THEN
-dbms_output.put_line('Изменение зарплаты для сотрудника ' || :OLD.employee_id || '. Новая зар
-плата: ' || :NEW.salary); -- Здесь можно выполнять дополнительные действия с данными до того, как они будут окончательно сохранены
- END IF;
- END AFTER EACH ROW;
+  -- проверяем дату окончания и устанавливаем статус
+  IF :NEW.end_date < trunc(SYSDATE) THEN
+    :NEW.status := 'CANCELED';
+  ELSE
+    :NEW.status := 'ACTIVE';
+  END IF;
 
-AFTER STATEMENT IS 
+  -- увеличиваем счетчик
+  v_row_count := v_row_count + 1;
+END BEFORE ROW;
+
+------------------------
+
+-- после каждой строки, для логирования или других действий
+AFTER ROW IS
 BEGIN
- v_total_rows := v_row_count;
-dbms_output.put_line('Операция обновления завершена. Обработано строк: ' || v_total_rows);
-END AFTER STATEMENT;
+  DBMS_OUTPUT.PUT_LINE('Обновлён полис ID: '  :NEW.policy_id  ', статус: ' || :NEW.status);
+END AFTER ROW;
 
-END employees_compound_trigger;
+------------------------
 
+-- в конце всей операции
+AFTER STATEMENT IS
+BEGIN
+  -- финальное сообщение о количестве обработанных строк
+  DBMS_OUTPUT.PUT_LINE('Обработка завершена: обработано строк: ' || v_row_count);
+END AFTER;
+
+END trg_insurance_status_full;
