@@ -1,6 +1,6 @@
 -- Данная процедура может отрабатывать с помощью джоба, который можно настроить отрабатывать раз в час. 
 -- При этом учтено, чтобы отрабатывалось не более 200000 строк за раз.
--- С помощью процедуры мы смотрим есть ли на полисе главное покрытие, если нет, то инсертим его, если есть, то обновляем страховую сумму 
+-- С помощью процедуры мы смотрим есть ли на полисе характеристика региона, если нет, то инсертим его, если есть, то обновляем на новое значение
 
 create or replace procedure my_proc_1 as
 vn  number:= 200000;
@@ -18,20 +18,20 @@ for a in
 
    select count(1)
      into cnt
-    from covers c
+    from characteristic c
   where c.policy = a.policy_id
-    and c.code = 'MAIN_COVER';
+    and c.code = 'REGION';
 
   begin
 
    if cnt = 0 then
-      insert covers (id, policy, code, ssum)
-      values (nextval, a.policy_id, 'MAIN_COVER', a.new_value);
+      insert characteristic (id, policy, code, value)
+      values (nextval, a.policy_id, 'REGION', a.new_value);
    else
-      update covers
-         set ssum = a.new_value
-      where c.policy = a.policy_id
-        and c.code = 'MAIN_COVER'; 
+      update characteristic
+         set value = a.new_value
+       where c.policy = a.policy_id
+         and c.code = 'REGION'; 
   end if;
 
    update tmp_table set processed = 'Y', pdate = sysdate where policy = a.policy_id;
