@@ -5,30 +5,31 @@ DECLARE
     v_count           NUMBER;
     v_disease_count   NUMBER;
 BEGIN
-    -- Добавим страхователя и диагноз
+    -- Добавим застрахованного и диагноз
     IF INSERTING THEN
         -- Проверяем наличие страхователя
-        SELECT COUNT(*) INTO v_count
-        FROM policy_holders
-        WHERE holder_id = :NEW.holder_id;
+        SELECT COUNT(*) 
+          INTO v_count
+        FROM policy_insured
+        WHERE insured_id = :NEW.insured_id;
 
         -- Если страхователя нет — добавляем
         IF v_count = 0 THEN
-            INSERT INTO policy_holders (holder_id, full_name, birth_date)
-            VALUES (:NEW.holder_id, :NEW.full_name, :NEW.birth_date);
+            INSERT INTO policy_insured (insured_id, full_name, birth_date, gender)
+            VALUES (:NEW.insured_id, :NEW.full_name, :NEW.birth_date, :NEW.gender);
         END IF;
 
         -- Если record_id не указан — генерируем новый
         INSERT INTO insured_diseases (
             record_id,
-            holder_id,
+            insured_id,
             disease_name,
             diagnosis_date,
             severity_level
         )
         VALUES (
             NVL(:NEW.record_id, seq_record_id.NEXTVAL),
-            :NEW.holder_id,
+            :NEW.insured_id,
             :NEW.disease_name,
             :NEW.diagnosis_date,
             :NEW.severity_level
