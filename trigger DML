@@ -1,15 +1,33 @@
-CREATE OR REPLACE TRIGGER trg_log_disease_changes
-BEFORE INSERT OR UPDATE OR DELETE ON insured_diseases
-   FOR EACH ROW
-   BEGIN
-  IF INSERTING THEN
-    INSERT INTO disease_log (id, insured_id, action_type, new_disease_name, new_date, new_severity, changed_by, change_date)
-    VALUES (:NEW.id, :NEW.insured_id, 'INSERT', :NEW.disease_name, :NEW.diagnosis_date, :NEW.severity_level, USER, SYSDATE);
-  ELSIF UPDATING THEN
-    INSERT INTO disease_log (id, insured_id, action_type, old_disease_name, new_disease_name, old_date, new_date, old_severity, new_severity, changed_by, change_date)
-    VALUES (:OLD.id, :OLD.insured_id, 'UPDATE', :OLD.disease_name, :NEW.disease_name, :OLD.diagnosis_date, :NEW.diagnosis_date, :OLD.severity_level, :NEW.severity_level, USER, SYSDATE);
-  ELSIF DELETING THEN
-    INSERT INTO disease_log (id, insured_id, action_type, old_disease_name, old_date, old_severity, changed_by, change_date)
-    VALUES (:OLD.id, :OLD.insured_id, 'DELETE', :OLD.disease_name, :OLD.diagnosis_date, :OLD.severity_level, USER, SYSDATE);
-  END IF;
- END;
+CREATE OR REPLACE TRIGGER trg_diseases_log
+AFTER INSERT OR UPDATE OR DELETE ON diseases
+FOR EACH ROW
+BEGIN
+  INSERT INTO diseases_log (
+    id,
+    disease_id,
+    insured_id,
+    operation_type,
+    old_disease_name,
+    new_disease_name,
+    old_status,
+    new_status,
+    change_date,
+    changed_by
+  )
+  VALUES (
+    diseases_log_seq.NEXTVAL,   -- предполагается, что есть последовательность
+    NVL(:OLD.disease_id, :NEW.disease_id),
+    NVL(:OLD.insured_id, :NEW.insured_id),
+    CASE
+      WHEN INSERTING THEN 'INSERT'
+      WHEN UPDATING THEN 'UPDATE'
+      WHEN DELETING THEN 'DELETE'
+    END,
+    :OLD.disease_name,
+    :NEW.disease_name,
+    :OLD.status,
+    :NEW.status,
+    SYSDATE,
+    USER
+  );
+END;
