@@ -5,6 +5,7 @@
 create or replace procedure my_proc_1 as
 vn  number:= 200000;
 cnt number;
+rn number;
 begin
 for a in 
    (select p.policy_id, td.new_value, td.processed
@@ -39,6 +40,12 @@ exception
 when others then
      update tmp_table set logerror = DBMS_UTILITY.FORMAT_ERROR_STACK() where policy = a.policy_id;
 end;
+
+rn := rn + SQL%rowcount;
+
+if rn = 10000 then
+  commit;
+end if; 
 
 vn := vn - 1;
   exception
