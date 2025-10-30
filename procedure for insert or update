@@ -35,7 +35,7 @@ for a in
          and c.code = 'REGION'; 
   end if;
 
-   update tmp_table set processed = 'Y', pdate = sysdate where policy = a.policy_id;
+   update tmp_table set processed = 'Y', pdate = sysdate where policy = a.policy_id; --записываем sysdate , чтобы отследить в том числе и часы апдейта, так как предпологаем что джоб отрабатывает раз в час
 exception
 when others then
      update tmp_table set logerror = DBMS_UTILITY.FORMAT_ERROR_STACK() where policy = a.policy_id;
